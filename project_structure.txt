@@ -1,0 +1,330 @@
+## Repository layout
+
+- Backend: `backend/` (Node.js + Express + MongoDB + JWT)
+- Frontend: `frontend/` (React + React Router + Axios, Vite)
+- Static uploads: `backend/uploads/` (product images)
+
+## Backend modules
+
+### Entry point
+
+`backend/server.js`
+- Bootstraps Express and loads env.
+- Connects to MongoDB.
+- Configures CORS, JSON, and URL-encoded middleware.
+- Serves `/uploads` static folder.
+- Registers route modules.
+
+### Database
+
+`backend/connect/database.js`
+- Connects to MongoDB using `MONGO_URI`.
+
+### Models
+
+`backend/models/userModel.js`
+- Fields: `name`, `email`, `password`, `role`.
+- Roles: `customer`, `admin`.
+
+`backend/models/productModel.js`
+- Fields: `name`, `category` (ref), `price`, `stock`, `rating`, `topSelling`, `offer`, `description`, `image`.
+
+`backend/models/categoryModel.js`
+- Fields: `name`.
+
+`backend/models/cartModel.js`
+- Fields: `user` (unique), `items[]`.
+- Items: `product` (ref), `quantity`.
+
+### Middleware
+
+`backend/middleware/authMiddleware.js`
+- `protect`: validates JWT from `Authorization: Bearer <token>`, loads user, assigns `req.user`.
+- `requireAdmin`: checks `req.user.role === 'admin'`.
+
+### Controllers
+
+`backend/controllers/authController.js`
+- `register`: validates input, checks email, hashes password, sets role, returns token.
+- `login`: validates input, checks password, returns token.
+- `getProfile`: returns current user info.
+
+`backend/controllers/productController.js`
+- `listProducts`: supports `search`, `category`, `topSelling`, `offer` filters.
+- `getProduct`: fetch by id.
+- `createProduct`: admin only, supports image upload.
+- `updateProduct`: admin only, supports image upload.
+- `deleteProduct`: admin only.
+
+`backend/controllers/categoryController.js`
+- `listCategories`: sorted by name.
+- `createCategory`: prevents duplicates.
+- `updateCategory`: prevents duplicates.
+- `deleteCategory`: blocks deletion if in use by products.
+
+`backend/controllers/cartController.js`
+- `getCart`: returns populated items + `total`.
+- `addToCart`: adds/increments items.
+- `removeFromCart`: removes item.
+
+`backend/controllers/checkoutController.js`
+- `simulateCheckout`: totals cart, clears items, returns `orderId`.
+
+`backend/controllers/adminController.js`
+- `listUsers`: admin only.
+- `deleteUser`: admin only.
+
+### Routes
+
+`backend/routes/*`
+- Each file maps to the controller functions listed above.
+- Protected routes use `protect` and `requireAdmin` as needed.
+
+## Frontend modules
+
+### Entry point
+
+`frontend/src/main.jsx`
+- Renders `<App />`.
+- Loads global styles.
+
+`frontend/src/App.jsx`
+- Owns global app state:
+  - `user`: current user from LocalStorage.
+  - `cartCount`: cart badge count for navbar.
+  - `notice`: floating toast message.
+- Responsibilities:
+  - Routing.
+  - `updateCartCount()` loads `/api/cart` or accepts numeric override.
+  - `showNotice()` renders floating notice and auto-dismisses after 6 seconds.
+
+### API helpers
+
+`frontend/src/api.js`
+- Axios instance with base URL.
+- Injects `Authorization` header if token exists.
+- `getImageUrl()` helper for `/uploads/...`.
+
+`frontend/src/auth.js`
+- LocalStorage wrapper: `getStoredUser()`, `getToken()`, `setAuth()`, `clearAuth()`.
+
+### Components
+
+`frontend/src/components/Header.jsx`
+- Props: `user`, `cartCount`, `onLogout`.
+- Contains search bar and navigation.
+- Shows cart badge.
+
+`frontend/src/components/Footer.jsx`
+- Static footer content.
+
+`frontend/src/components/ProductCard.jsx`
+- Reusable product tile.
+- Props: `product`, `onAdd`.
+
+### Pages and state
+
+`frontend/src/pages/Home.jsx`
+- State:
+  - `offers`, `topSelling`, `categories`
+  - `loading`, `heroSearch`
+- Responsibilities:
+  - Fetch offers/top selling/categories.
+  - Add-to-cart triggers `onCartChange` and `onNotice`.
+
+`frontend/src/pages/Products.jsx`
+- State:
+  - `products`, `categories`
+  - `loading`, `search`, `category`, `topSelling`, `offerOnly`
+- Responsibilities:
+  - Sync filters with URL query params.
+  - Fetch filtered product list.
+  - Add-to-cart triggers `onCartChange` and `onNotice`.
+
+`frontend/src/pages/ProductDetails.jsx`
+- State:
+  - `product`, `loading`, `error`
+- Responsibilities:
+  - Fetch product by id.
+  - Add-to-cart triggers `onCartChange` and `onNotice`.
+
+`frontend/src/pages/Cart.jsx`
+- State:
+  - `cart`, `loading`
+- Responsibilities:
+  - Fetch cart for user.
+  - Remove item triggers `onCartChange` and `onNotice`.
+
+`frontend/src/pages/Checkout.jsx`
+- State:
+  - `cart`, `loading`, `order`, `form`
+- Responsibilities:
+  - Fetch cart for user.
+  - Simulate checkout, clear cart count.
+  - Uses global notice for success/failure.
+
+`frontend/src/pages/Login.jsx`
+- State:
+  - `form`, `error`
+- Responsibilities:
+  - Authenticate and store token/user.
+  - Uses `onAuth()` to set global `user`.
+
+`frontend/src/pages/Register.jsx`
+- State:
+  - `form`, `error`
+- Responsibilities:
+  - Register and store token/user.
+  - Uses `onAuth()` to set global `user`.
+
+`frontend/src/pages/Admin.jsx`
+- State:
+  - `section` (products/categories/users)
+  - `products`, `categories`, `users`
+  - `editingId`, `editingCategoryId`
+  - `productForm`, `categoryForm`
+- Responsibilities:
+  - CRUD for products, categories, users.
+  - Image upload via `multipart/form-data`.
+  - Errors go through `onNotice()`.
+
+`frontend/src/pages/NotFound.jsx`
+- Static 404 page.
+
+### Styling
+
+`frontend/src/styles.css`
+- Global theme tokens in `:root`.
+- Sticky header.
+- Floating notice positioned under header (`--header-offset`).
+- Responsive grids and cards.
+
+## Environment
+
+### Backend (`backend/.env`)
+
+```
+PORT=8000
+NODE_ENV=development
+MONGO_URI=mongodb://localhost:27017/251211_e-co_group
+JWT_SECRET=your_secret_here
+ADMIN_EMAIL=admin@example.com
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+Role assignment:
+- If `ADMIN_EMAIL` matches a registering email, role becomes `admin`.
+- If `ADMIN_EMAIL` is not set, the first user becomes `admin`.
+
+### Frontend (`frontend/.env`)
+
+```
+VITE_API_URL=http://localhost:8000
+```
+
+## API summary
+
+Auth:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
+Products:
+- `GET /api/products`
+- `GET /api/products/:id`
+- `POST /api/products` (admin)
+- `PUT /api/products/:id` (admin)
+- `DELETE /api/products/:id` (admin)
+
+Categories:
+- `GET /api/categories`
+- `POST /api/categories` (admin)
+- `PUT /api/categories/:id` (admin)
+- `DELETE /api/categories/:id` (admin)
+
+Cart:
+- `GET /api/cart`
+- `POST /api/cart/add`
+- `POST /api/cart/remove`
+
+Checkout:
+- `POST /api/checkout`
+
+Admin:
+- `GET /api/admin/users`
+- `DELETE /api/admin/users/:id`
+
+## Developer notes
+
+- Images are served from `http://localhost:8000/uploads/...`.
+- CORS is controlled by `FRONTEND_ORIGIN`.
+- Admin product create/update uses `multipart/form-data`.
+
+## Developer flows
+
+### Auth flow (register/login)
+
+1) User submits form in `Register.jsx` or `Login.jsx`.
+2) Page sends `POST /api/auth/register` or `POST /api/auth/login`.
+3) Response returns `{ user, token }`.
+4) `setAuth()` stores token/user in LocalStorage.
+5) `onAuth()` updates `App.jsx` `user` state.
+6) `App.jsx` triggers `updateCartCount()` to sync cart badge.
+
+### Product browse + add to cart
+
+1) `Products.jsx` or `ProductDetails.jsx` calls `GET /api/products` or `GET /api/products/:id`.
+2) User clicks "Add to cart".
+3) Page sends `POST /api/cart/add`.
+4) On success: `onCartChange()` updates `cartCount` and `onNotice()` shows toast.
+
+### Cart update + remove
+
+1) `Cart.jsx` loads cart via `GET /api/cart`.
+2) Remove button calls `POST /api/cart/remove`.
+3) Response updates local `cart` state.
+4) `onCartChange()` updates global cart badge.
+
+### Checkout
+
+1) `Checkout.jsx` loads cart via `GET /api/cart`.
+2) Submit calls `POST /api/checkout`.
+3) Backend returns `{ status, orderId, amount }` and clears cart.
+4) Frontend sets `order`, clears local cart, calls `onCartChange(0)`.
+
+### Admin CRUD
+
+1) Admin opens `Admin.jsx`.
+2) Data loads in parallel:
+   - `GET /api/products`
+   - `GET /api/categories`
+   - `GET /api/admin/users`
+3) Product create/update sends `multipart/form-data`:
+   - `POST /api/products` or `PUT /api/products/:id`
+4) Category CRUD uses JSON:
+   - `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id`
+5) User delete:
+   - `DELETE /api/admin/users/:id`
+
+## Module interaction diagram (text)
+
+```
+Browser
+  |
+  v
+React UI (pages/components)
+  |  uses
+  v
+Axios client (frontend/src/api.js)
+  |  HTTP + JWT
+  v
+Express routes (backend/routes/*)
+  |  calls
+  v
+Controllers (backend/controllers/*)
+  |  uses
+  v
+Models (backend/models/*) ---> MongoDB
+  |
+  +--> Static files (/uploads)
+```

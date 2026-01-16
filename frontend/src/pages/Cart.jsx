@@ -88,7 +88,7 @@ const Cart = ({ user, onCartChange, onNotice }) => {
                 <div className="cart-info">
                   <div className="cart-title">{item.product?.name}</div>
                   <div className="cart-meta">
-                    <span>Qty</span>
+                    <span>Qty </span>
                     <div className="qty-controls">
                       <button
                         className="button-outline"
